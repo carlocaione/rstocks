@@ -16,6 +16,10 @@ fn do_line(line: &str) -> Result<()> {
         "search" => {
             finance::search(&provider, params)?;
         }
+
+        "show" => {
+            finance::show(&provider, params)?;
+        }
         _ => {
             println!("Unknown command: \"{cmd}\"");
         }
