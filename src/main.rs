@@ -36,10 +36,8 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
 fn main() -> Result<()> {
     // TODO: Add input validator
     let mut rl = DefaultEditor::new()?;
-
-    let provider = YProvider::new()?;
-
     let mut data = CtxData::load()?;
+    let provider = YProvider::new()?;
 
     // TODO: maybe while let?
     loop {
