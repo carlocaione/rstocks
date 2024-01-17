@@ -3,36 +3,45 @@ use tokio_test;
 use yahoo::YahooConnector;
 use yahoo_finance_api as yahoo;
 
-pub fn connect() -> Result<YahooConnector> {
-    Ok(YahooConnector::new())
+pub struct YProvider {
+    connector: YahooConnector,
 }
 
-pub fn search(provider: &YahooConnector, params: Vec<&str>) -> Result<()> {
-    // TODO: checks on Vec
-    let resp = tokio_test::block_on(provider.search_ticker(params[0]))?;
-
-    for q in resp.quotes {
-        let desc = if q.long_name.is_empty() {
-            q.short_name
-        } else {
-            q.long_name
-        };
-        println!("{} \t| {} [{}]\t| {}", q.type_display, q.symbol, q.exchange, desc);
+impl YProvider {
+    pub fn new() -> Result<YProvider> {
+        Ok(YProvider {
+            connector: YahooConnector::new(),
+        })
     }
 
-    Ok(())
-}
+    pub fn search(&self, params: Vec<&str>) -> Result<()> {
+        let resp = tokio_test::block_on(self.connector.search_ticker(params[0]))?;
 
-pub fn show(provider: &YahooConnector, params: Vec<&str>) -> Result<()> {
-    let response = tokio_test::block_on(provider.get_latest_quotes(params[0], "1d"))?;
-    let quote = response.last_quote()?;
-    let meta = response.metadata()?;
+        for q in resp.quotes {
+            let desc = if q.long_name.is_empty() {
+                q.short_name
+            } else {
+                q.long_name
+            };
+            println!(
+                "{} \t| {} [{}]\t| {}",
+                q.type_display, q.symbol, q.exchange, desc
+            );
+        }
 
-    println!("{} | {} [{}] : {}", meta.instrument_type, meta.symbol, meta.currency, quote.close);
+        Ok(())
+    }
 
-//    println!("===> {}", quote.close);
+    pub fn show(&self, params: Vec<&str>) -> Result<()> {
+        let response = tokio_test::block_on(self.connector.get_latest_quotes(params[0], "1d"))?;
+        let quote = response.last_quote()?;
+        let meta = response.metadata()?;
 
-//    println!("{:#?}", response);
+        println!(
+            "{} | {} [{}] : {}",
+            meta.instrument_type, meta.symbol, meta.currency, quote.close
+        );
 
-    Ok(())  
+        Ok(())
+    }
 }

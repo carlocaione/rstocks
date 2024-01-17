@@ -7,7 +7,10 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.79"
+directories = "5.0.1"
 rustyline = { version = "13.0.0", features = ["derive"] }
+serde = "1.0.195"
 time = "0.3.31"
 tokio-test = "0.4.3"
+toml = "0.8.8"
 yahoo_finance_api = "2.1.0"

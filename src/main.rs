@@ -1,12 +1,13 @@
 mod finance;
+mod data;
 
 use anyhow::Result;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+use finance::YProvider;
+use data::CtxData;
 
-fn do_line(line: &str) -> Result<()> {
-    let provider = finance::connect()?;
-
+fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
     let v: Vec<&str> = line.split_whitespace().collect();
 
     let cmd = v[0];
@@ -14,11 +15,15 @@ fn do_line(line: &str) -> Result<()> {
 
     match cmd {
         "search" => {
-            finance::search(&provider, params)?;
+            provider.search(params)?;
         }
 
         "show" => {
-            finance::show(&provider, params)?;
+            provider.show(params)?;
+        }
+
+        "new" => {
+            data.add_portfolio(params)?;
         }
         _ => {
             println!("Unknown command: \"{cmd}\"");
@@ -32,7 +37,9 @@ fn main() -> Result<()> {
     // TODO: Add input validator
     let mut rl = DefaultEditor::new()?;
 
-    rl.clear_screen()?;
+    let provider = YProvider::new()?;
+
+    let mut data = CtxData::load()?;
 
     // TODO: maybe while let?
     loop {
@@ -40,7 +47,7 @@ fn main() -> Result<()> {
 
         match readline {
             Ok(line) if !line.is_empty() => {
-                do_line(&line)?;
+                do_line(&mut data, &provider, &line)?;
             }
             Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
                 println!("Bye!");
