@@ -48,7 +48,6 @@ pub struct CtxData {
 
 impl CtxData {
     pub fn load() -> Result<CtxData> {
-
         let datadir = ProjectDirs::from("", "", PROGNAME)
             .context("Failed to get project directory")?
             .data_dir()
@@ -86,6 +85,7 @@ impl CtxData {
     }
 
     pub fn add_portfolio(&mut self, params: Vec<&str>) -> Result <()> {
+        let sp = &mut self.saved.portfolios;
         let p = Portfolio {
             assets: None,
             name: String::from(params[0]),
