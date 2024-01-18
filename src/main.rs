@@ -25,6 +25,10 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
         "new" => {
             data.add_portfolio(params)?;
         }
+        
+        "add" => {
+            data.add_asset(params)?;
+        }
         _ => {
             println!("Unknown command: \"{cmd}\"");
         }

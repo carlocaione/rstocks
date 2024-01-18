@@ -32,7 +32,7 @@ struct Asset {
 #[derive(Serialize, Deserialize, Debug)]
 struct Portfolio {
     name: String,
-    assets: Option<Vec<Asset>>, 
+    asset: Option<Vec<Asset>>, 
 }
 
 impl PartialEq for Portfolio {
@@ -41,9 +41,15 @@ impl PartialEq for Portfolio {
     }
 }
 
+impl PartialEq<str> for Portfolio {
+    fn eq(&self, other: &str) -> bool {
+        self.name == other
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct SavedData {
-    portfolios: Option<Vec<Portfolio>>,
+    portfolio: Option<Vec<Portfolio>>,
 }
 
 #[derive(Debug)]
@@ -53,7 +59,7 @@ pub struct CtxData {
 }
 
 impl CtxData {
-    pub fn load() -> Result<CtxData> {
+    pub fn load() -> Result<Self> {
         let datadir = ProjectDirs::from("", "", PROGNAME)
             .context("Failed to get project directory")?
             .data_dir()
@@ -90,21 +96,27 @@ impl CtxData {
         Ok(())
     }
 
-    pub fn add_portfolio(&mut self, params: Vec<&str>) -> Result <()> {
+    pub fn add_portfolio(&mut self, params: Vec<&str>) -> Result<()> {
         let p = Portfolio {
-            assets: None,
+            asset: None,
             name: String::from(params[0]),
         };
 
-        if let Some(ref mut portfolios) = self.saved.portfolios {
-            if !portfolios.contains(&p) {
-                portfolios.push(p);
+        if let Some(ref mut portfolio) = self.saved.portfolio {
+            if !portfolio.contains(&p) {
+                portfolio.push(p);
             }
         } else {
-            self.saved.portfolios = Some(vec![p]);
+            self.saved.portfolio = Some(vec![p]);
         }
 
         self.save()?;
+
+        Ok(())
+    }
+
+    pub fn add_asset(&mut self, params: Vec<&str>) -> Result<()> {
+        let portfolio = params[0];
 
         Ok(())
     }
