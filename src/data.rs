@@ -35,18 +35,6 @@ struct Portfolio {
     asset: Vec<Asset>,
 }
 
-impl PartialEq for Portfolio {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl PartialEq<str> for Portfolio {
-    fn eq(&self, other: &str) -> bool {
-        self.name == other
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct SavedData {
     portfolio: Vec<Portfolio>,
@@ -97,21 +85,22 @@ impl CtxData {
     }
 
     pub fn add_portfolio(&mut self, params: Vec<&str>) -> Result<()> {
-        let p = Portfolio {
-            asset: vec![],
-            name: String::from(params[0]),
-        };
+        let name = params[0];
 
-        if !self.saved.portfolio.contains(&p) {
-            self.saved.portfolio.push(p);
+        if !self.saved.portfolio.iter().any(|x| x.name == name) {
+            self.saved.portfolio.push(Portfolio {
+                asset: vec![],
+                name: name.to_owned(),
+            });
+            self.saved.save(&self.file)?;
         }
-
-        self.saved.save(&self.file)?;
 
         Ok(())
     }
 
     pub fn add_asset(&mut self, params: Vec<&str>) -> Result<()> {
+        let (portfolio, ticker): (&str, &str) = (params[0], params[1]);
+
         Ok(())
     }
 }
