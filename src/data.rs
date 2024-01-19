@@ -1,13 +1,13 @@
-use serde::{Serialize, Deserialize};
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
 use std::fs;
-use std::fs::OpenOptions;
+use std::fs::File;
 use std::path::PathBuf;
 
 static PROGNAME: &'static str = env!("CARGO_PKG_NAME");
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct AssetOp {
     is_buy: bool,
     quantity: u32,
@@ -15,24 +15,24 @@ struct AssetOp {
     date: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct AssetCost {
     min: Option<f32>,
     max: Option<f32>,
     per: Option<f32>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct Asset {
     ticker: String,
     cost: Option<AssetCost>,
-    op: Option<Vec<AssetOp>>,
+    op: Vec<AssetOp>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct Portfolio {
     name: String,
-    asset: Option<Vec<Asset>>, 
+    asset: Vec<Asset>,
 }
 
 impl PartialEq for Portfolio {
@@ -47,9 +47,19 @@ impl PartialEq<str> for Portfolio {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct SavedData {
-    portfolio: Option<Vec<Portfolio>>,
+    portfolio: Vec<Portfolio>,
+}
+
+impl SavedData {
+    // TODO: manage PathBuf vs Path
+    fn save(&self, file: &PathBuf) -> Result<()> {
+        let toml = toml::to_string(self)?;
+        fs::write(file, &toml)?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -70,54 +80,38 @@ impl CtxData {
         let mut datafile = datadir.join(PROGNAME);
         datafile.set_extension("dat");
 
-        OpenOptions::new().write(true)
-            .create(true)
-            .open(&datafile)?;
-
-        let tomldata = fs::read_to_string(&datafile)?;
-        let data: SavedData = toml::from_str(&tomldata)?;
-
-        let ctx = CtxData {
-            saved: data,
-            file: datafile,
+        let data = if datafile.exists() {
+            let tomldata = fs::read_to_string(&datafile)?;
+            toml::from_str(&tomldata)?
+        } else {
+            File::create(&datafile)?;
+            let s = SavedData::default();
+            s.save(&datafile)?;
+            s
         };
 
-        println!("{:?}", ctx);
-
-        Ok(ctx)
-    }
-
-    fn save(&self) -> Result<()> {
-        let toml = toml::to_string(&self.saved)?;
-        fs::write(&self.file, &toml)?;
-
-        println!("{}", toml);
-
-        Ok(())
+        Ok(CtxData {
+            saved: data,
+            file: datafile,
+        })
     }
 
     pub fn add_portfolio(&mut self, params: Vec<&str>) -> Result<()> {
         let p = Portfolio {
-            asset: None,
+            asset: vec![],
             name: String::from(params[0]),
         };
 
-        if let Some(ref mut portfolio) = self.saved.portfolio {
-            if !portfolio.contains(&p) {
-                portfolio.push(p);
-            }
-        } else {
-            self.saved.portfolio = Some(vec![p]);
+        if !self.saved.portfolio.contains(&p) {
+            self.saved.portfolio.push(p);
         }
 
-        self.save()?;
+        self.saved.save(&self.file)?;
 
         Ok(())
     }
 
     pub fn add_asset(&mut self, params: Vec<&str>) -> Result<()> {
-        let portfolio = params[0];
-
         Ok(())
     }
 }
