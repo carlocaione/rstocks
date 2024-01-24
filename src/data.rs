@@ -1,9 +1,10 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 static PROGNAME: &'static str = env!("CARGO_PKG_NAME");
 
@@ -23,26 +24,24 @@ struct AssetCost {
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct Asset {
-    ticker: String,
+struct AssetData {
     cost: Option<AssetCost>,
     op: Vec<AssetOp>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct Portfolio {
-    name: String,
-    asset: Vec<Asset>,
+struct PortfolioData {
+    amount: f32,
+    asset: HashMap<String, AssetData>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct SavedData {
-    portfolio: Vec<Portfolio>,
+    portfolio: HashMap<String, PortfolioData>,
 }
 
 impl SavedData {
-    // TODO: manage PathBuf vs Path
-    fn save(&self, file: &PathBuf) -> Result<()> {
+    fn save<P: AsRef<Path>>(&self, file: P) -> Result<()> {
         let toml = toml::to_string(self)?;
         fs::write(file, &toml)?;
 
@@ -84,23 +83,34 @@ impl CtxData {
         })
     }
 
-    pub fn add_portfolio(&mut self, params: Vec<&str>) -> Result<()> {
-        let name = params[0];
+    pub fn add(
+        &mut self,
+        portfolio: Option<&str>,
+        ticker: Option<&str>,
+        cost_min: Option<&str>,
+        cost_max: Option<&str>,
+        cost_per: Option<&str>,
+    ) -> Result<()> {
+        let portfolio = portfolio.context("Portfolio not found")?.to_string();
+        let pdata = self.saved.portfolio.entry(portfolio).or_default();
 
-        if !self.saved.portfolio.iter().any(|x| x.name == name) {
-            self.saved.portfolio.push(Portfolio {
-                asset: vec![],
-                name: name.to_owned(),
-            });
-            self.saved.save(&self.file)?;
+        if let Some(ticker) = ticker {
+            let assetdata = pdata.asset.entry(ticker.to_string()).or_default();
+
+            // XXX: manage error print
+            let min: Option<f32> = cost_min.map(|x| x.parse::<f32>()).transpose()?;
+            let max: Option<f32> = cost_max.map(|x| x.parse::<f32>()).transpose()?;
+            let per: Option<f32> = cost_per.map(|x| x.parse::<f32>()).transpose()?;
+
+            assetdata.cost = Some(AssetCost { min, max, per });
         }
 
+        self.saved.save(&self.file)?;
         Ok(())
     }
 
-    pub fn add_asset(&mut self, params: Vec<&str>) -> Result<()> {
-        let (portfolio, ticker): (&str, &str) = (params[0], params[1]);
-
+    pub fn list(&self) -> Result<()> {
+        println!("{:#?}", self);
         Ok(())
     }
 }

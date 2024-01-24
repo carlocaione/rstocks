@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use tokio_test;
 use yahoo::YahooConnector;
 use yahoo_finance_api as yahoo;
@@ -14,8 +14,9 @@ impl YProvider {
         })
     }
 
-    pub fn search(&self, params: Vec<&str>) -> Result<()> {
-        let resp = tokio_test::block_on(self.connector.search_ticker(params[0]))?;
+    pub fn search(&self, ticker: Option<&str>) -> Result<()> {
+        let t = ticker.context("Ticker not found")?;
+        let resp = tokio_test::block_on(self.connector.search_ticker(t))?;
 
         for q in resp.quotes {
             let desc = if q.long_name.is_empty() {
@@ -32,8 +33,9 @@ impl YProvider {
         Ok(())
     }
 
-    pub fn show(&self, params: Vec<&str>) -> Result<()> {
-        let response = tokio_test::block_on(self.connector.get_latest_quotes(params[0], "1d"))?;
+    pub fn info(&self, ticker: Option<&str>) -> Result<()> {
+        let t = ticker.context("Ticker not found")?;
+        let response = tokio_test::block_on(self.connector.get_latest_quotes(t, "1d"))?;
         let quote = response.last_quote()?;
         let meta = response.metadata()?;
 

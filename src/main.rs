@@ -1,34 +1,47 @@
-mod finance;
 mod data;
+mod finance;
 
 use anyhow::Result;
+use data::CtxData;
+use finance::YProvider;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
-use finance::YProvider;
-use data::CtxData;
+
+fn do_help() {
+    todo!();
+}
 
 fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
     let v: Vec<&str> = line.split_whitespace().collect();
 
     let cmd = v[0];
-    let params = v[1..].to_vec();
+    let (portfolio, ticker) = (v.get(1).copied(), v.get(2).copied());
 
     match cmd {
+        "help" => {
+            do_help();
+        }
+
         "search" => {
-            provider.search(params)?;
+            provider.search(ticker)?;
         }
 
-        "show" => {
-            provider.show(params)?;
+        "list" => {
+            data.list()?;
         }
 
-        "new" => {
-            data.add_portfolio(params)?;
+        "info" => {
+            provider.info(ticker)?;
         }
-        
+
         "add" => {
-            data.add_asset(params)?;
+            let cost_min = v.get(3).copied();
+            let cost_max = v.get(4).copied();
+            let cost_per = v.get(5).copied();
+
+            data.add(portfolio, ticker, cost_min, cost_max, cost_per)?;
         }
+
         _ => {
             println!("Unknown command: \"{cmd}\"");
         }
@@ -38,12 +51,10 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    // TODO: Add input validator
     let mut rl = DefaultEditor::new()?;
     let mut data = CtxData::load()?;
     let provider = YProvider::new()?;
 
-    // TODO: maybe while let?
     loop {
         let readline = rl.readline(">> ");
 

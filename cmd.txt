@@ -1,0 +1,11 @@
+help
+search <TICKER>
+list
+  - (it lists everything)
+
+info <TICKER>
+  - info on tickr
+
+show <PORTFOLIO>
+add <PORTFOLIO> <TICKER>
+entry <PORTFOLIO> <TICKER>
