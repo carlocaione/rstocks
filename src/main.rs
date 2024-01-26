@@ -5,10 +5,10 @@ use anyhow::Result;
 use data::CtxData;
 use finance::YProvider;
 use rustyline::error::ReadlineError;
-use rustyline::history::DefaultHistory;
-use rustyline::{Completer, Helper, Highlighter, Validator, Editor};
-use std::collections::HashSet;
 use rustyline::hint::{Hint, Hinter};
+use rustyline::history::DefaultHistory;
+use rustyline::{Completer, Editor, Helper, Highlighter, Validator};
+use std::collections::HashSet;
 
 // https://github.com/kkawakam/rustyline/blob/master/examples/diy_hints.rs
 
@@ -24,11 +24,12 @@ struct CommandHint {
 }
 
 impl CommandHint {
-    fn new(text: &str, complete_up_to: &str) -> CommandHint {
-        assert!(text.starts_with(complete_up_to));
+    fn new(text: &str) -> CommandHint {
+        let cut = text.find(' ').map_or(text.len(), |l| l + 1);
+
         CommandHint {
             display: text.into(),
-            complete_up_to: complete_up_to.len(),
+            complete_up_to: cut,
         }
     }
 
@@ -62,27 +63,27 @@ impl Hinter for CommandHinter {
             return None;
         }
 
-        self.hints
-            .iter()
-            .find_map(|hint| {
-                if hint.display.starts_with(line) {
-                    Some(hint.suffix(pos))
-                } else {
-                    None
-                }
-            })
+        self.hints.iter().find_map(|hint| {
+            if hint.display.starts_with(line) {
+                Some(hint.suffix(pos))
+            } else {
+                None
+            }
+        })
     }
 }
 
 fn build_hints() -> HashSet<CommandHint> {
     let mut set = HashSet::new();
 
-    set.insert(CommandHint::new("help", "help"));
-    set.insert(CommandHint::new("search <ticker>", "search "));
-    set.insert(CommandHint::new("list", "list"));
-    set.insert(CommandHint::new("info <ticker>", "info "));
-    set.insert(CommandHint::new("show <portfolio>", "show "));
-    set.insert(CommandHint::new("add <portfolio> [ticker] [cost_min] [cost_max] [cost_perc]", "add "));
+    set.insert(CommandHint::new("help"));
+    set.insert(CommandHint::new("search <ticker>"));
+    set.insert(CommandHint::new("list"));
+    set.insert(CommandHint::new("info <ticker>"));
+    set.insert(CommandHint::new("show <portfolio>"));
+    set.insert(CommandHint::new(
+        "add <portfolio> [ticker] [cost_min] [cost_max] [cost_perc]",
+    ));
 
     set
 }
@@ -131,7 +132,9 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let h = CommandHinter { hints: build_hints() };
+    let h = CommandHinter {
+        hints: build_hints(),
+    };
 
     let mut rl: Editor<CommandHinter, DefaultHistory> = Editor::new()?;
     rl.set_helper(Some(h));
