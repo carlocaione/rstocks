@@ -134,7 +134,6 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
     let v: Vec<&str> = line.split_whitespace().collect();
 
     let cmd = v[0];
-    let (portfolio, ticker) = (v.get(1).copied(), v.get(2).copied());
 
     match cmd {
         "help" => {
@@ -142,6 +141,7 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
         }
 
         "search" => {
+            let ticker = v.get(1).copied();
             provider.search(ticker)?;
         }
 
@@ -150,10 +150,13 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
         }
 
         "info" => {
+            let ticker = v.get(1).copied();
             provider.info(ticker)?;
         }
 
         "add" => {
+            let portfolio = v.get(1).copied();
+            let ticker = v.get(2).copied();
             let cost_min = v.get(3).copied();
             let cost_max = v.get(4).copied();
             let cost_per = v.get(5).copied();
