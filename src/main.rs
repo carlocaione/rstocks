@@ -7,12 +7,11 @@ use finance::YProvider;
 use rustyline::error::ReadlineError;
 use rustyline::hint::{Hint, Hinter};
 use rustyline::history::DefaultHistory;
-use rustyline::{Completer, Editor, Helper, Highlighter, Validator};
+use rustyline::validate::{ValidationContext, ValidationResult, Validator};
+use rustyline::{Completer, Editor, Helper, Highlighter};
 use std::collections::HashSet;
 
-// https://github.com/kkawakam/rustyline/blob/master/examples/diy_hints.rs
-
-#[derive(Completer, Helper, Validator, Highlighter)]
+#[derive(Completer, Helper, Highlighter)]
 struct CommandHinter {
     hints: HashSet<CommandHint>,
 }
@@ -21,15 +20,19 @@ struct CommandHinter {
 struct CommandHint {
     display: String,
     complete_up_to: usize,
+    mandatory_param: usize,
 }
 
 impl CommandHint {
     fn new(text: &str) -> CommandHint {
-        let cut = text.find(' ').map_or(text.len(), |l| l + 1);
+        let v: Vec<&str> = text.split_whitespace().collect();
+        let mandatory_param = v.iter().skip(1).filter(|w| w.starts_with('<')).count();
+        let complete_up_to = v[0].len();
 
         CommandHint {
             display: text.into(),
-            complete_up_to: cut,
+            complete_up_to,
+            mandatory_param,
         }
     }
 
@@ -37,6 +40,7 @@ impl CommandHint {
         CommandHint {
             display: self.display[strip_chars..].to_owned(),
             complete_up_to: self.complete_up_to.saturating_sub(strip_chars),
+            mandatory_param: 0,
         }
     }
 }
@@ -70,6 +74,40 @@ impl Hinter for CommandHinter {
                 None
             }
         })
+    }
+}
+
+impl Validator for CommandHinter {
+    fn validate(&self, ctx: &mut ValidationContext) -> rustyline::Result<ValidationResult> {
+        use ValidationResult::{Invalid, Valid};
+        let input = ctx.input();
+        let vparam: Vec<&str> = input.split_whitespace().collect();
+        let nparam_passed = vparam.len() - 1;
+
+        let r = self.hints.iter().find_map(|hint| {
+            if hint.display().starts_with(vparam[0]) {
+                if nparam_passed >= hint.mandatory_param {
+                    Some(Valid(None))
+                } else {
+                    Some(Invalid(Some(format!(
+                        "\nMissing parameters. Usage: \"{}\"",
+                        hint.display()
+                    ))))
+                }
+            } else {
+                None
+            }
+        });
+
+        if let Some(rvalid) = r {
+            Ok(rvalid)
+        } else {
+            Ok(Invalid(Some("\ncommand not found".to_owned())))
+        }
+    }
+
+    fn validate_while_typing(&self) -> bool {
+        false
     }
 }
 
