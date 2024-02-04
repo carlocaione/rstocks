@@ -1,11 +1,19 @@
 help
+
 search <TICKER>
+  - info on the ticker from YF
+
 list
   - (it lists everything)
 
 info <TICKER>
-  - info on tickr
+  - info on ticker
 
 show <PORTFOLIO>
+  - show portfolio with data / money
+
 add <PORTFOLIO> <TICKER>
+  - Add asset to portfolio
+
 entry <PORTFOLIO> <TICKER>
+  - Register entry (buy / sold)

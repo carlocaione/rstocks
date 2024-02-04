@@ -2,7 +2,7 @@ mod data;
 mod finance;
 
 use anyhow::Result;
-use data::CtxData;
+use data::CtxSavedData;
 use finance::YProvider;
 use rustyline::error::ReadlineError;
 use rustyline::hint::{Hint, Hinter};
@@ -21,6 +21,12 @@ struct CommandHint {
     display: String,
     complete_up_to: usize,
     mandatory_param: usize,
+}
+
+struct Context {
+    data: CtxSavedData,
+    provider: YProvider,
+    rl: Editor<CommandHinter, DefaultHistory>,
 }
 
 impl CommandHint {
@@ -130,7 +136,7 @@ fn do_help() {
     todo!();
 }
 
-fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
+fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
     let v: Vec<&str> = line.split_whitespace().collect();
 
     let cmd = v[0];
@@ -142,16 +148,16 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
 
         "search" => {
             let ticker = v.get(1).copied();
-            provider.search(ticker)?;
+            ctx.provider.search(ticker)?;
         }
 
         "list" => {
-            data.list()?;
+            ctx.data.list()?;
         }
 
         "info" => {
             let ticker = v.get(1).copied();
-            provider.info(ticker)?;
+            ctx.provider.info(ticker)?;
         }
 
         "add" => {
@@ -161,7 +167,7 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
             let cost_max = v.get(4).copied();
             let cost_per = v.get(5).copied();
 
-            data.add(portfolio, ticker, cost_min, cost_max, cost_per)?;
+            ctx.data.add(portfolio, ticker, cost_min, cost_max, cost_per)?;
         }
 
         _ => {
@@ -172,23 +178,31 @@ fn do_line(data: &mut CtxData, provider: &YProvider, line: &str) -> Result<()> {
     Ok(())
 }
 
+impl Context {
+    fn build() -> Result<Self> {
+        let helper = CommandHinter {
+            hints: build_hints(),
+        };
+    
+        let mut rl: Editor<CommandHinter, DefaultHistory> = Editor::new()?;
+        rl.set_helper(Some(helper));
+    
+        let data = CtxSavedData::load()?;
+        let provider = YProvider::new()?;
+
+        Ok(Context { data, provider, rl })
+    }
+}
+
 fn main() -> Result<()> {
-    let h = CommandHinter {
-        hints: build_hints(),
-    };
-
-    let mut rl: Editor<CommandHinter, DefaultHistory> = Editor::new()?;
-    rl.set_helper(Some(h));
-
-    let mut data = CtxData::load()?;
-    let provider = YProvider::new()?;
+    let mut ctx = Context::build()?;
 
     loop {
-        let readline = rl.readline(">> ");
+        let readline = ctx.rl.readline(">> ");
 
         match readline {
             Ok(line) if !line.is_empty() => {
-                do_line(&mut data, &provider, &line)?;
+                do_line(&mut ctx, &line)?;
             }
             Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
                 println!("Bye!");

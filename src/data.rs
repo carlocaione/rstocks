@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -6,7 +6,7 @@ use std::fs;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-static PROGNAME: &'static str = env!("CARGO_PKG_NAME");
+static PROGNAME: &str = env!("CARGO_PKG_NAME");
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct AssetOp {
@@ -43,19 +43,19 @@ struct SavedData {
 impl SavedData {
     fn save<P: AsRef<Path>>(&self, file: P) -> Result<()> {
         let toml = toml::to_string(self)?;
-        fs::write(file, &toml)?;
+        fs::write(file, toml)?;
 
         Ok(())
     }
 }
 
 #[derive(Debug)]
-pub struct CtxData {
+pub struct CtxSavedData {
     saved: SavedData,
     file: PathBuf,
 }
 
-impl CtxData {
+impl CtxSavedData {
     pub fn load() -> Result<Self> {
         let datadir = ProjectDirs::from("", "", PROGNAME)
             .context("Failed to get project directory")?
@@ -77,7 +77,7 @@ impl CtxData {
             s
         };
 
-        Ok(CtxData {
+        Ok(CtxSavedData {
             saved: data,
             file: datafile,
         })
