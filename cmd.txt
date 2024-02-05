@@ -15,5 +15,5 @@ show <PORTFOLIO>
 add <PORTFOLIO> <TICKER>
   - Add asset to portfolio
 
-entry <PORTFOLIO> <TICKER>
+entry <PORTFOLIO> <TICKER> <quantity> <purch_date> <purch_price>
   - Register entry (buy / sold)

@@ -1,7 +1,7 @@
 mod data;
 mod finance;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use data::CtxSavedData;
 use finance::YProvider;
 use rustyline::error::ReadlineError;
@@ -87,6 +87,11 @@ impl Validator for CommandHinter {
     fn validate(&self, ctx: &mut ValidationContext) -> rustyline::Result<ValidationResult> {
         use ValidationResult::{Invalid, Valid};
         let input = ctx.input();
+
+        if input.is_empty() {
+            return Ok(Valid(None));
+        }
+
         let vparam: Vec<&str> = input.split_whitespace().collect();
         let nparam_passed = vparam.len() - 1;
 
@@ -132,47 +137,49 @@ fn build_hints() -> HashSet<CommandHint> {
     set
 }
 
-fn do_help() {
-    todo!();
+fn do_help() -> Result<()>{
+    Ok(())
 }
 
 fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
     let v: Vec<&str> = line.split_whitespace().collect();
 
     let cmd = v[0];
+    let opt = v.get(1).copied().unwrap_or_default();
 
-    match cmd {
+    let ret = match cmd {
         "help" => {
-            do_help();
+            do_help()
         }
 
         "search" => {
-            let ticker = v.get(1).copied();
-            ctx.provider.search(ticker)?;
+            ctx.provider.search(opt)
         }
 
         "list" => {
-            ctx.data.list()?;
+            ctx.data.list()
         }
 
         "info" => {
-            let ticker = v.get(1).copied();
-            ctx.provider.info(ticker)?;
+            ctx.provider.info(opt)
         }
 
         "add" => {
-            let portfolio = v.get(1).copied();
             let ticker = v.get(2).copied();
             let cost_min = v.get(3).copied();
             let cost_max = v.get(4).copied();
             let cost_per = v.get(5).copied();
 
-            ctx.data.add(portfolio, ticker, cost_min, cost_max, cost_per)?;
+            ctx.data.add(opt, ticker, cost_min, cost_max, cost_per)
         }
 
         _ => {
-            println!("Unknown command: \"{cmd}\"");
+            Err(anyhow!("Unknown command: \"{cmd}\""))
         }
+    };
+
+    if let Err(err) = ret {
+        eprintln!("ERROR: {}", err);
     }
 
     Ok(())
@@ -183,10 +190,10 @@ impl Context {
         let helper = CommandHinter {
             hints: build_hints(),
         };
-    
+
         let mut rl: Editor<CommandHinter, DefaultHistory> = Editor::new()?;
         rl.set_helper(Some(helper));
-    
+
         let data = CtxSavedData::load()?;
         let provider = YProvider::new()?;
 

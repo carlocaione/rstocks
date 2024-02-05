@@ -85,22 +85,33 @@ impl CtxSavedData {
 
     pub fn add(
         &mut self,
-        portfolio: Option<&str>,
+        portfolio: &str,
         ticker: Option<&str>,
         cost_min: Option<&str>,
         cost_max: Option<&str>,
         cost_per: Option<&str>,
     ) -> Result<()> {
-        let portfolio = portfolio.context("Portfolio not found")?.to_string();
-        let pdata = self.saved.portfolio.entry(portfolio).or_default();
+        let pdata = self
+            .saved
+            .portfolio
+            .entry(portfolio.to_string())
+            .or_default();
 
         if let Some(ticker) = ticker {
             let assetdata = pdata.asset.entry(ticker.to_string()).or_default();
 
-            // XXX: manage error print
-            let min: Option<f32> = cost_min.map(|x| x.parse::<f32>()).transpose()?;
-            let max: Option<f32> = cost_max.map(|x| x.parse::<f32>()).transpose()?;
-            let per: Option<f32> = cost_per.map(|x| x.parse::<f32>()).transpose()?;
+            let min: Option<f32> = cost_min
+                .map(|x| x.parse::<f32>())
+                .transpose()
+                .context("The minimum cost must be a number")?;
+            let max: Option<f32> = cost_max
+                .map(|x| x.parse::<f32>())
+                .transpose()
+                .context("The maximum cost must be a number")?;
+            let per: Option<f32> = cost_per
+                .map(|x| x.parse::<f32>())
+                .transpose()
+                .context("Invalid percentage")?;
 
             assetdata.cost = Some(AssetCost { min, max, per });
         }
