@@ -2,9 +2,11 @@ use anyhow::{bail, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::fs;
 use std::fs::File;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 static PROGNAME: &str = env!("CARGO_PKG_NAME");
 
@@ -83,6 +85,18 @@ impl CtxSavedData {
         })
     }
 
+    fn convert<T, C>(input: Vec<&str>, index: usize, ctx: C) -> Result<Option<T>>
+    where
+        C: Display + Send + Sync + 'static,
+        T: FromStr<Err = anyhow::Error>,
+    {
+        input
+            .get(index)
+            .copied()
+            .map(|x| x.parse::<T>())
+            .transpose()
+    }
+
     pub fn add(&mut self, opt: Vec<&str>) -> Result<()> {
         let portfolio = opt[0];
         let ticker = opt.get(1).copied();
@@ -125,13 +139,32 @@ impl CtxSavedData {
         Ok(())
     }
 
-    pub fn entry(&self, opt: Vec<&str>) -> Result<()> {
+    pub fn entry(&mut self, opt: Vec<&str>) -> Result<()> {
         let portfolio = opt[0];
-        if !self.saved.portfolio.contains_key(portfolio) {
-            bail!("Portfolio {portfolio} found\n");
-        }
-
         let ticker = opt[1];
+        let assetop = &mut self
+            .saved
+            .portfolio
+            .get_mut(portfolio)
+            .with_context(|| format!("portfolio \"{portfolio}\" not found"))?
+            .asset
+            .get_mut(ticker)
+            .with_context(|| format!("ticker \"{ticker}\" not found"))?
+            .op;
+
+        let op = opt[2];
+        let is_buy = match op {
+            "buy" => true,
+            "sell" => false,
+            _ => bail!("Not \"buy\" nor \"sell\" specified\n"),
+        };
+
+        assetop.push(AssetOp {
+            is_buy: true,
+            quantity: 4,
+            price: 5.0,
+            date: 4,
+        });
 
         Ok(())
     }
