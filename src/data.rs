@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -83,14 +83,10 @@ impl CtxSavedData {
         })
     }
 
-    pub fn add(
-        &mut self,
-        portfolio: &str,
-        ticker: Option<&str>,
-        cost_min: Option<&str>,
-        cost_max: Option<&str>,
-        cost_per: Option<&str>,
-    ) -> Result<()> {
+    pub fn add(&mut self, opt: Vec<&str>) -> Result<()> {
+        let portfolio = opt[0];
+        let ticker = opt.get(1).copied();
+
         let pdata = self
             .saved
             .portfolio
@@ -100,15 +96,24 @@ impl CtxSavedData {
         if let Some(ticker) = ticker {
             let assetdata = pdata.asset.entry(ticker.to_string()).or_default();
 
-            let min: Option<f32> = cost_min
+            // XXX: add helper?
+            let min: Option<f32> = opt
+                .get(2)
+                .copied()
                 .map(|x| x.parse::<f32>())
                 .transpose()
                 .context("The minimum cost must be a number")?;
-            let max: Option<f32> = cost_max
+
+            let max: Option<f32> = opt
+                .get(3)
+                .copied()
                 .map(|x| x.parse::<f32>())
                 .transpose()
                 .context("The maximum cost must be a number")?;
-            let per: Option<f32> = cost_per
+
+            let per: Option<f32> = opt
+                .get(4)
+                .copied()
                 .map(|x| x.parse::<f32>())
                 .transpose()
                 .context("Invalid percentage")?;
@@ -117,6 +122,17 @@ impl CtxSavedData {
         }
 
         self.saved.save(&self.file)?;
+        Ok(())
+    }
+
+    pub fn entry(&self, opt: Vec<&str>) -> Result<()> {
+        let portfolio = opt[0];
+        if !self.saved.portfolio.contains_key(portfolio) {
+            bail!("Portfolio {portfolio} found\n");
+        }
+
+        let ticker = opt[1];
+
         Ok(())
     }
 

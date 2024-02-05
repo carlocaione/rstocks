@@ -133,52 +133,36 @@ fn build_hints() -> HashSet<CommandHint> {
     set.insert(CommandHint::new(
         "add <portfolio> [ticker] [cost_min] [cost_max] [cost_perc]",
     ));
+    set.insert(CommandHint::new(
+        "entry <portfolio> <ticker> <buy | sell> <quantity> [purchase_price] [purchase_date]",
+    ));
 
     set
 }
 
-fn do_help() -> Result<()>{
+fn do_help() -> Result<()> {
     Ok(())
 }
 
 fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
-    let v: Vec<&str> = line.split_whitespace().collect();
+    let mut v: Vec<&str> = line.split_whitespace().collect();
 
-    let cmd = v[0];
-    let opt = v.get(1).copied().unwrap_or_default();
+    let cmd = v.remove(0);
 
+    // XXX: Array of function pointers?
     let ret = match cmd {
-        "help" => {
-            do_help()
-        }
+        "help" => do_help(),
+        "search" => ctx.provider.search(v),
+        "list" => ctx.data.list(),
+        "info" => ctx.provider.info(v),
+        "add" => ctx.data.add(v),
+        "entry" => ctx.data.entry(v),
 
-        "search" => {
-            ctx.provider.search(opt)
-        }
-
-        "list" => {
-            ctx.data.list()
-        }
-
-        "info" => {
-            ctx.provider.info(opt)
-        }
-
-        "add" => {
-            let ticker = v.get(2).copied();
-            let cost_min = v.get(3).copied();
-            let cost_max = v.get(4).copied();
-            let cost_per = v.get(5).copied();
-
-            ctx.data.add(opt, ticker, cost_min, cost_max, cost_per)
-        }
-
-        _ => {
-            Err(anyhow!("Unknown command: \"{cmd}\""))
-        }
+        _ => Err(anyhow!("Unknown command: \"{cmd}\"")),
     };
 
     if let Err(err) = ret {
+        // XXX: print usage again
         eprintln!("ERROR: {}", err);
     }
 

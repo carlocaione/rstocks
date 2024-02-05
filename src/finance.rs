@@ -13,7 +13,9 @@ impl YProvider {
         })
     }
 
-    pub fn search(&self, ticker: &str) -> Result<()> {
+    pub fn search(&self, opt: Vec<&str>) -> Result<()> {
+        let ticker = opt[0];
+
         let resp = tokio_test::block_on(self.connector.search_ticker(ticker))?;
 
         for q in resp.quotes {
@@ -31,7 +33,9 @@ impl YProvider {
         Ok(())
     }
 
-    pub fn info(&self, ticker: &str) -> Result<()> {
+    pub fn info(&self, opt: Vec<&str>) -> Result<()> {
+        let ticker = opt[0];
+
         let response = tokio_test::block_on(self.connector.get_latest_quotes(ticker, "1d"))?;
         let quote = response.last_quote()?;
         let meta = response.metadata()?;
