@@ -2,7 +2,6 @@ use anyhow::{bail, Context, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::fs;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -57,6 +56,17 @@ pub struct CtxSavedData {
     file: PathBuf,
 }
 
+fn convert<T>(input: &[&str], index: usize) -> Result<Option<T>, T::Err>
+where
+    T: FromStr,
+{
+    input
+        .get(index)
+        .copied()
+        .map(|x| x.parse::<T>())
+        .transpose()
+}
+
 impl CtxSavedData {
     pub fn load() -> Result<Self> {
         let datadir = ProjectDirs::from("", "", PROGNAME)
@@ -85,18 +95,6 @@ impl CtxSavedData {
         })
     }
 
-    fn convert<T, C>(input: Vec<&str>, index: usize, ctx: C) -> Result<Option<T>>
-    where
-        C: Display + Send + Sync + 'static,
-        T: FromStr<Err = anyhow::Error>,
-    {
-        input
-            .get(index)
-            .copied()
-            .map(|x| x.parse::<T>())
-            .transpose()
-    }
-
     pub fn add(&mut self, opt: Vec<&str>) -> Result<()> {
         let portfolio = opt[0];
         let ticker = opt.get(1).copied();
@@ -110,27 +108,9 @@ impl CtxSavedData {
         if let Some(ticker) = ticker {
             let assetdata = pdata.asset.entry(ticker.to_string()).or_default();
 
-            // XXX: add helper?
-            let min: Option<f32> = opt
-                .get(2)
-                .copied()
-                .map(|x| x.parse::<f32>())
-                .transpose()
-                .context("The minimum cost must be a number")?;
-
-            let max: Option<f32> = opt
-                .get(3)
-                .copied()
-                .map(|x| x.parse::<f32>())
-                .transpose()
-                .context("The maximum cost must be a number")?;
-
-            let per: Option<f32> = opt
-                .get(4)
-                .copied()
-                .map(|x| x.parse::<f32>())
-                .transpose()
-                .context("Invalid percentage")?;
+            let min: Option<f32> = convert(&opt, 2).context("The minimum cost must be a number")?;
+            let max: Option<f32> = convert(&opt, 3).context("The maximum cost must be a number")?;
+            let per: Option<f32> = convert(&opt, 4).context("Invalid percentage")?;
 
             assetdata.cost = Some(AssetCost { min, max, per });
         }
@@ -159,10 +139,13 @@ impl CtxSavedData {
             _ => bail!("Not \"buy\" nor \"sell\" specified\n"),
         };
 
+        let quantity: u32 = convert(&opt, 3).context("Invalid quantity")?.unwrap();
+        let price: f32 = convert(&opt, 4).context("Invalid price")?.unwrap();
+
         assetop.push(AssetOp {
-            is_buy: true,
-            quantity: 4,
-            price: 5.0,
+            is_buy,
+            quantity,
+            price,
             date: 4,
         });
 
