@@ -92,29 +92,27 @@ impl Validator for CommandHinter {
             return Ok(Valid(None));
         }
 
-        let vparam: Vec<&str> = input.split_whitespace().collect();
-        let nparam_passed = vparam.len() - 1;
+        Ok(self
+            .hints
+            .iter()
+            .find_map(|hint| {
+                let vparam: Vec<&str> = input.split_whitespace().collect();
+                let nparam_passed = vparam.len() - 1;
 
-        let r = self.hints.iter().find_map(|hint| {
-            if hint.display().starts_with(vparam[0]) {
-                if nparam_passed >= hint.mandatory_param {
-                    Some(Valid(None))
+                if hint.display().starts_with(vparam[0]) {
+                    if nparam_passed >= hint.mandatory_param {
+                        Some(Valid(None))
+                    } else {
+                        Some(Invalid(Some(format!(
+                            "\nMissing parameters.\n\nUsage: \"{}\"",
+                            hint.display()
+                        ))))
+                    }
                 } else {
-                    Some(Invalid(Some(format!(
-                        "\nMissing parameters. Usage: \"{}\"",
-                        hint.display()
-                    ))))
+                    None
                 }
-            } else {
-                None
-            }
-        });
-
-        if let Some(rvalid) = r {
-            Ok(rvalid)
-        } else {
-            Ok(Invalid(Some("\ncommand not found".to_owned())))
-        }
+            })
+            .unwrap_or(Invalid(Some(("\nCommand not found").to_string()))))
     }
 
     fn validate_while_typing(&self) -> bool {
@@ -157,6 +155,7 @@ fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
         "info" => ctx.provider.info(v),
         "add" => ctx.data.add(v),
         "entry" => ctx.data.entry(v),
+        "show" => ctx.data.show(v),
 
         _ => Err(anyhow!("Unknown command: \"{cmd}\"")),
     };
@@ -200,7 +199,7 @@ fn main() -> Result<()> {
                 break;
             }
             Err(err) => {
-                println!("Error: {:?}", err);
+                eprintln!("Error: {:?}", err);
                 break;
             }
             _ => {}

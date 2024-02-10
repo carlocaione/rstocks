@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use yahoo::YahooConnector;
 use yahoo_finance_api as yahoo;
 
@@ -36,7 +36,8 @@ impl YProvider {
     pub fn info(&self, opt: Vec<&str>) -> Result<()> {
         let ticker = opt[0];
 
-        let response = tokio_test::block_on(self.connector.get_latest_quotes(ticker, "1d"))?;
+        let response = tokio_test::block_on(self.connector.get_latest_quotes(ticker, "1d"))
+            .context("Ticker not found")?;
         let quote = response.last_quote()?;
         let meta = response.metadata()?;
 

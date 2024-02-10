@@ -1,4 +1,6 @@
 use anyhow::{bail, Context, Result};
+use chrono::naive::serde::ts_seconds;
+use chrono::prelude::*;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,7 +16,8 @@ struct AssetOp {
     is_buy: bool,
     quantity: u32,
     price: f32,
-    date: u64,
+    #[serde(with = "ts_seconds")]
+    date: NaiveDateTime,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -119,10 +122,8 @@ impl CtxSavedData {
         Ok(())
     }
 
-    pub fn entry(&mut self, opt: Vec<&str>) -> Result<()> {
-        let portfolio = opt[0];
-        let ticker = opt[1];
-        let assetop = &mut self
+    fn get_ops(&mut self, portfolio: &str, ticker: &str) -> Result<&mut Vec<AssetOp>> {
+        Ok(&mut self
             .saved
             .portfolio
             .get_mut(portfolio)
@@ -130,10 +131,15 @@ impl CtxSavedData {
             .asset
             .get_mut(ticker)
             .with_context(|| format!("ticker \"{ticker}\" not found"))?
-            .op;
+            .op)
+    }
 
-        let op = opt[2];
-        let is_buy = match op {
+    pub fn entry(&mut self, opt: Vec<&str>) -> Result<()> {
+        let portfolio = opt[0];
+        let ticker = opt[1];
+        let assetop = self.get_ops(portfolio, ticker)?;
+
+        let is_buy = match opt[2] {
             "buy" => true,
             "sell" => false,
             _ => bail!("Not \"buy\" nor \"sell\" specified\n"),
@@ -142,12 +148,39 @@ impl CtxSavedData {
         let quantity: u32 = convert(&opt, 3).context("Invalid quantity")?.unwrap();
         let price: f32 = convert(&opt, 4).context("Invalid price")?.unwrap();
 
+        let date = opt.get(5).copied();
+        let date = match date {
+            None => Utc::now().date_naive(),
+            Some(x) => {
+                NaiveDate::parse_from_str(x, "%d/%m/%Y").context("Wrong date format: dd/mm/yy\n")?
+            }
+        };
+        let date = date.and_hms_opt(0, 0, 0).unwrap();
+
         assetop.push(AssetOp {
             is_buy,
             quantity,
             price,
-            date: 4,
+            date,
         });
+
+        Ok(())
+    }
+
+    pub fn show(&mut self, opt: Vec<&str>) -> Result<()> {
+        let portfolio = opt[0];
+        let assets = &self
+            .saved
+            .portfolio
+            .get(portfolio)
+            .with_context(|| format!("portfolio \"{portfolio}\" not found"))?
+            .asset;
+
+        for (ticker, assetdata) in assets {
+            for op in &assetdata.op {
+                println!("{:?}", op);
+            }
+        }
 
         Ok(())
     }
