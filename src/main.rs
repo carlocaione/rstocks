@@ -153,9 +153,9 @@ fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
         "search" => ctx.provider.search(v),
         "list" => ctx.data.list(),
         "info" => ctx.provider.info(v),
-        "add" => ctx.data.add(v),
+        "add" => ctx.data.add(&ctx.provider, v),
         "entry" => ctx.data.entry(v),
-        "show" => ctx.data.show(v),
+        "show" => ctx.data.show(&ctx.provider, v),
 
         _ => Err(anyhow!("Unknown command: \"{cmd}\"")),
     };

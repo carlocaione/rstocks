@@ -1,9 +1,10 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use yahoo::YahooConnector;
 use yahoo_finance_api as yahoo;
 
 pub struct YProvider {
-    connector: YahooConnector,
+    // XXX getter?
+    pub connector: YahooConnector,
 }
 
 impl YProvider {
@@ -33,13 +34,27 @@ impl YProvider {
         Ok(())
     }
 
+    pub fn get_latest_quotes(&self, ticker: &str) -> Result<yahoo::YResponse> {
+        Ok(tokio_test::block_on(self.connector.get_latest_quotes(ticker, "1d"))?)
+    }
+
+    pub fn exists(&self, ticker: &str) -> bool {
+        self.get_metadata(ticker).is_ok()
+    }
+
+    pub fn get_metadata(&self, ticker: &str) -> Result<yahoo::YMetaData> {
+        Ok(self.get_latest_quotes(ticker)?.metadata()?)
+    }
+
+    pub fn get_last_quote(&self, ticker: &str) -> Result<yahoo::Quote> {
+        Ok(self.get_latest_quotes(ticker)?.last_quote()?)
+    }
+
     pub fn info(&self, opt: Vec<&str>) -> Result<()> {
         let ticker = opt[0];
 
-        let response = tokio_test::block_on(self.connector.get_latest_quotes(ticker, "1d"))
-            .context("Ticker not found")?;
-        let quote = response.last_quote()?;
-        let meta = response.metadata()?;
+        let quote = self.get_last_quote(ticker)?;
+        let meta = self.get_metadata(ticker)?;
 
         println!(
             "{} | {} [{}] : {}",

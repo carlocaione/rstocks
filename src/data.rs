@@ -9,13 +9,14 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::finance::YProvider;
+
 static PROGNAME: &str = env!("CARGO_PKG_NAME");
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct AssetOp {
-    is_buy: bool,
     quantity: u32,
-    price: f32,
+    price: f64,
     #[serde(with = "ts_seconds")]
     date: NaiveDateTime,
 }
@@ -98,7 +99,7 @@ impl CtxSavedData {
         })
     }
 
-    pub fn add(&mut self, opt: Vec<&str>) -> Result<()> {
+    pub fn add(&mut self, yprovider: &YProvider, opt: Vec<&str>) -> Result<()> {
         let portfolio = opt[0];
         let ticker = opt.get(1).copied();
 
@@ -110,6 +111,10 @@ impl CtxSavedData {
 
         if let Some(ticker) = ticker {
             let assetdata = pdata.asset.entry(ticker.to_string()).or_default();
+
+            if !yprovider.exists(ticker) {
+                bail!("Ticker {ticker} does not exist\n");
+            }
 
             let min: Option<f32> = convert(&opt, 2).context("The minimum cost must be a number")?;
             let max: Option<f32> = convert(&opt, 3).context("The maximum cost must be a number")?;
@@ -136,14 +141,8 @@ impl CtxSavedData {
             .with_context(|| format!("ticker \"{ticker}\" not found"))?
             .op;
 
-        let is_buy = match opt[2] {
-            "buy" => true,
-            "sell" => false,
-            _ => bail!("Not \"buy\" nor \"sell\" specified\n"),
-        };
-
         let quantity: u32 = convert(&opt, 3).context("Invalid quantity")?.unwrap();
-        let price: f32 = convert(&opt, 4).context("Invalid price")?.unwrap();
+        let price: f64 = convert(&opt, 4).context("Invalid price")?.unwrap();
 
         let date = opt.get(5).copied();
         let date = match date {
@@ -155,7 +154,6 @@ impl CtxSavedData {
         let date = date.and_hms_opt(0, 0, 0).unwrap();
 
         assetop.push(AssetOp {
-            is_buy,
             quantity,
             price,
             date,
@@ -165,7 +163,7 @@ impl CtxSavedData {
         Ok(())
     }
 
-    pub fn show(&mut self, opt: Vec<&str>) -> Result<()> {
+    pub fn show(&mut self, yprovider: &YProvider, opt: Vec<&str>) -> Result<()> {
         let portfolio = opt[0];
         let assets = &self
             .saved
@@ -174,11 +172,14 @@ impl CtxSavedData {
             .with_context(|| format!("portfolio \"{portfolio}\" not found"))?
             .asset;
 
+        let mut res = 0.0;
         for (ticker, assetdata) in assets {
-            for op in &assetdata.op {
-                println!("{:?}", op);
-            }
+            let quote = yprovider.get_last_quote(ticker)?;
+
+            res = assetdata.op.iter().fold(res, |acc, x| acc + (quote.close - x.price));
         }
+
+        println!("==> {}\n", res);
 
         Ok(())
     }
