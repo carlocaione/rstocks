@@ -122,8 +122,11 @@ impl CtxSavedData {
         Ok(())
     }
 
-    fn get_ops(&mut self, portfolio: &str, ticker: &str) -> Result<&mut Vec<AssetOp>> {
-        Ok(&mut self
+    pub fn entry(&mut self, opt: Vec<&str>) -> Result<()> {
+        let portfolio = opt[0];
+        let ticker = opt[1];
+
+        let assetop = &mut self
             .saved
             .portfolio
             .get_mut(portfolio)
@@ -131,13 +134,7 @@ impl CtxSavedData {
             .asset
             .get_mut(ticker)
             .with_context(|| format!("ticker \"{ticker}\" not found"))?
-            .op)
-    }
-
-    pub fn entry(&mut self, opt: Vec<&str>) -> Result<()> {
-        let portfolio = opt[0];
-        let ticker = opt[1];
-        let assetop = self.get_ops(portfolio, ticker)?;
+            .op;
 
         let is_buy = match opt[2] {
             "buy" => true,
@@ -164,6 +161,7 @@ impl CtxSavedData {
             date,
         });
 
+        self.saved.save(&self.file)?;
         Ok(())
     }
 
