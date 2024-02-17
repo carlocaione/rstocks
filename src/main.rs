@@ -34,10 +34,11 @@ fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+    let mut rl = Context::build_rl()?;
     let mut ctx = Context::build()?;
 
     loop {
-        let readline = ctx.rl.readline(">> ");
+        let readline = rl.readline(">> ");
 
         match readline {
             Ok(line) if !line.is_empty() => {
