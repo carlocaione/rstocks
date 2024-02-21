@@ -99,7 +99,7 @@ impl CtxSavedData {
         })
     }
 
-    pub fn add(&mut self, yprovider: &YProvider, opt: Vec<&str>) -> Result<()> {
+    pub fn add(&mut self, yprovider: &YProvider, opt: &[&str]) -> Result<()> {
         let portfolio = opt[0];
         let ticker = opt.get(1).copied();
 
@@ -116,9 +116,9 @@ impl CtxSavedData {
                 bail!("Ticker {ticker} does not exist\n");
             }
 
-            let min: Option<f32> = convert(&opt, 2).context("The minimum cost must be a number")?;
-            let max: Option<f32> = convert(&opt, 3).context("The maximum cost must be a number")?;
-            let per: Option<f32> = convert(&opt, 4).context("Invalid percentage")?;
+            let min: Option<f32> = convert(opt, 2).context("The minimum cost must be a number")?;
+            let max: Option<f32> = convert(opt, 3).context("The maximum cost must be a number")?;
+            let per: Option<f32> = convert(opt, 4).context("Invalid percentage")?;
 
             assetdata.cost = Some(AssetCost { min, max, per });
         }
@@ -127,7 +127,7 @@ impl CtxSavedData {
         Ok(())
     }
 
-    pub fn entry(&mut self, opt: Vec<&str>) -> Result<()> {
+    pub fn entry(&mut self, opt: &[&str]) -> Result<()> {
         let portfolio = opt[0];
         let ticker = opt[1];
 
@@ -141,8 +141,8 @@ impl CtxSavedData {
             .with_context(|| format!("ticker \"{ticker}\" not found"))?
             .op;
 
-        let quantity: u32 = convert(&opt, 3).context("Invalid quantity")?.unwrap();
-        let price: f64 = convert(&opt, 4).context("Invalid price")?.unwrap();
+        let quantity: u32 = convert(opt, 3).context("Invalid quantity")?.unwrap();
+        let price: f64 = convert(opt, 4).context("Invalid price")?.unwrap();
 
         let date = opt.get(5).copied();
         let date = match date {
@@ -163,7 +163,7 @@ impl CtxSavedData {
         Ok(())
     }
 
-    pub fn show(&mut self, yprovider: &YProvider, opt: Vec<&str>) -> Result<()> {
+    pub fn show(&mut self, yprovider: &YProvider, opt: &[&str]) -> Result<()> {
         let portfolio = opt[0];
         let assets = &self
             .saved
@@ -176,7 +176,10 @@ impl CtxSavedData {
         for (ticker, assetdata) in assets {
             let quote = yprovider.get_last_quote(ticker)?;
 
-            res = assetdata.op.iter().fold(res, |acc, x| acc + (quote.close - x.price));
+            res = assetdata
+                .op
+                .iter()
+                .fold(res, |acc, x| acc + (quote.close - x.price));
         }
 
         println!("==> {}\n", res);

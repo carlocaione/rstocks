@@ -1,26 +1,27 @@
+mod cli;
 mod data;
 mod finance;
-mod cli;
-mod ctx;
 
 use anyhow::{anyhow, Result};
-use ctx::Context;
+use cli::CommandHinter;
+use data::CtxSavedData;
+use finance::YProvider;
 use rustyline::error::ReadlineError;
+use rustyline::{history::DefaultHistory, Editor};
 
-fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
+fn do_line(data: &mut CtxSavedData, yprovider: &YProvider, line: &str) -> Result<()> {
     let mut v: Vec<&str> = line.split_whitespace().collect();
 
     let cmd = v.remove(0);
 
-    // XXX: Array of function pointers?
     let ret = match cmd {
         "help" => cli::do_help(),
-        "search" => ctx.provider.search(v),
-        "list" => ctx.data.list(),
-        "info" => ctx.provider.info(v),
-        "add" => ctx.data.add(&ctx.provider, v),
-        "entry" => ctx.data.entry(v),
-        "show" => ctx.data.show(&ctx.provider, v),
+        "search" => yprovider.search(&v),
+        "list" => data.list(),
+        "info" => yprovider.info(&v),
+        "add" => data.add(yprovider, &v),
+        "entry" => data.entry(&v),
+        "show" => data.show(yprovider, &v),
 
         _ => Err(anyhow!("Unknown command: \"{cmd}\"")),
     };
@@ -34,15 +35,22 @@ fn do_line(ctx: &mut Context, line: &str) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let mut rl = Context::build_rl()?;
-    let mut ctx = Context::build()?;
+    let helper = CommandHinter {
+        hints: cli::build_hints(),
+    };
+
+    let mut rl: Editor<CommandHinter, DefaultHistory> = Editor::new()?;
+    rl.set_helper(Some(helper));
+
+    let mut data = CtxSavedData::load()?;
+    let yprovider = YProvider::new();
 
     loop {
         let readline = rl.readline(">> ");
 
         match readline {
             Ok(line) if !line.is_empty() => {
-                do_line(&mut ctx, &line)?;
+                do_line(&mut data, &yprovider, &line)?;
             }
             Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
                 println!("Bye!");

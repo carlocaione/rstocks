@@ -3,18 +3,17 @@ use yahoo::YahooConnector;
 use yahoo_finance_api as yahoo;
 
 pub struct YProvider {
-    // XXX getter?
     pub connector: YahooConnector,
 }
 
 impl YProvider {
-    pub fn new() -> Result<YProvider> {
-        Ok(YProvider {
+    pub fn new() -> YProvider {
+        YProvider {
             connector: YahooConnector::new(),
-        })
+        }
     }
 
-    pub fn search(&self, opt: Vec<&str>) -> Result<()> {
+    pub fn search(&self, opt: &[&str]) -> Result<()> {
         let ticker = opt[0];
 
         let resp = tokio_test::block_on(self.connector.search_ticker(ticker))?;
@@ -35,7 +34,9 @@ impl YProvider {
     }
 
     pub fn get_latest_quotes(&self, ticker: &str) -> Result<yahoo::YResponse> {
-        Ok(tokio_test::block_on(self.connector.get_latest_quotes(ticker, "1d"))?)
+        Ok(tokio_test::block_on(
+            self.connector.get_latest_quotes(ticker, "1d"),
+        )?)
     }
 
     pub fn exists(&self, ticker: &str) -> bool {
@@ -50,7 +51,7 @@ impl YProvider {
         Ok(self.get_latest_quotes(ticker)?.last_quote()?)
     }
 
-    pub fn info(&self, opt: Vec<&str>) -> Result<()> {
+    pub fn info(&self, opt: &[&str]) -> Result<()> {
         let ticker = opt[0];
 
         let quote = self.get_last_quote(ticker)?;
