@@ -1,8 +1,8 @@
+use anyhow::Result;
 use rustyline::hint::{Hint, Hinter};
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{Completer, Helper, Highlighter};
 use std::collections::HashSet;
-use anyhow::Result;
 
 #[derive(Completer, Helper, Highlighter)]
 pub struct CommandHinter {
@@ -128,4 +128,3 @@ pub fn build_hints() -> HashSet<CommandHint> {
 pub fn do_help() -> Result<()> {
     Ok(())
 }
-
