@@ -9,6 +9,8 @@ edition = "2021"
 anyhow = "1.0.79"
 chrono = { version = "0.4.33", features = ["serde"] }
 directories = "5.0.1"
+owo-colors = "4.0.0"
+prettytable-rs = "0.10.0"
 rustyline = { version = "13.0.0", features = ["derive"] }
 serde = "1.0.195"
 time = "0.3.31"

@@ -2,6 +2,8 @@ use anyhow::{bail, Context, Result};
 use chrono::naive::serde::ts_seconds;
 use chrono::prelude::*;
 use directories::ProjectDirs;
+use prettytable::Table;
+use prettytable::{color, Attr, Cell, Row};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -36,8 +38,22 @@ struct AssetData {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct PortfolioData {
-    amount: f32,
     asset: HashMap<String, AssetData>,
+}
+
+impl PortfolioData {
+    fn get_gain(&self, yprovider: &YProvider) -> Result<f64> {
+        let mut res = 0.0;
+        for (ticker, assetdata) in &self.asset {
+            let quote = yprovider.get_last_quote(ticker)?;
+
+            res = assetdata
+                .op
+                .iter()
+                .fold(res, |acc, x| acc + (quote.close - x.price));
+        }
+        Ok(res)
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -165,30 +181,29 @@ impl CtxSavedData {
 
     pub fn show(&mut self, yprovider: &YProvider, opt: &[&str]) -> Result<()> {
         let portfolio = opt[0];
-        let assets = &self
+        let pdata = self
             .saved
             .portfolio
             .get(portfolio)
-            .with_context(|| format!("portfolio \"{portfolio}\" not found"))?
-            .asset;
+            .with_context(|| format!("portfolio \"{portfolio}\" not found"))?;
 
-        let mut res = 0.0;
-        for (ticker, assetdata) in assets {
-            let quote = yprovider.get_last_quote(ticker)?;
+        let gain = pdata.get_gain(yprovider)?;
 
-            res = assetdata
-                .op
-                .iter()
-                .fold(res, |acc, x| acc + (quote.close - x.price));
-        }
-
-        println!("==> {}\n", res);
+        println!("==> {}\n", gain);
 
         Ok(())
     }
 
-    pub fn list(&self) -> Result<()> {
-        println!("{:#?}", self);
+    pub fn list(&self, yprovider: &YProvider) -> Result<()> {
+        let mut table = Table::new();
+        for (portfolio, pdata) in &self.saved.portfolio {
+            let gain = pdata.get_gain(yprovider)?;
+            table.add_row(Row::new(vec![
+                Cell::new(portfolio),
+                Cell::new(&gain.to_string()),
+            ]));
+        }
+        table.printstd();
         Ok(())
     }
 }

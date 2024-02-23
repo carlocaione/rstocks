@@ -17,7 +17,7 @@ fn do_line(data: &mut CtxSavedData, yprovider: &YProvider, line: &str) -> Result
     let ret = match cmd {
         "help" => cli::do_help(),
         "search" => yprovider.search(&v),
-        "list" => data.list(),
+        "list" => data.list(yprovider),
         "info" => yprovider.info(&v),
         "add" => data.add(yprovider, &v),
         "entry" => data.entry(&v),
