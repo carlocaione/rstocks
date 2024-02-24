@@ -3,9 +3,10 @@ use chrono::naive::serde::ts_seconds;
 use chrono::prelude::*;
 use directories::ProjectDirs;
 use prettytable::Table;
-use prettytable::{color, Attr, Cell, Row};
+use prettytable::{Cell, Row};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
 use std::fs;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -42,17 +43,29 @@ struct PortfolioData {
 }
 
 impl PortfolioData {
-    fn get_gain(&self, yprovider: &YProvider) -> Result<f64> {
-        let mut res = 0.0;
-        for (ticker, assetdata) in &self.asset {
-            let quote = yprovider.get_last_quote(ticker)?;
+    fn get_gain(&self, yprovider: &YProvider) -> Option<(f64, f64)> {
+        let mut gain = 0.0;
+        let mut invested = 0.0;
 
-            res = assetdata
+        for (ticker, assetdata) in &self.asset {
+            let quote = yprovider.get_last_quote(ticker).unwrap();
+
+            (invested, gain) = assetdata
                 .op
                 .iter()
-                .fold(res, |acc, x| acc + (quote.close - x.price));
+                .fold((invested, gain), |(invested, gain), x| {
+                    (
+                        gain + x.quantity as f64 * (quote.close - x.price),
+                        invested + x.quantity as f64 * x.price,
+                    )
+                });
         }
-        Ok(res)
+
+        if gain == 0.0 {
+            return None;
+        }
+
+        Some((invested, gain / invested))
     }
 }
 
@@ -126,11 +139,11 @@ impl CtxSavedData {
             .or_default();
 
         if let Some(ticker) = ticker {
-            let assetdata = pdata.asset.entry(ticker.to_string()).or_default();
-
             if !yprovider.exists(ticker) {
                 bail!("Ticker {ticker} does not exist\n");
             }
+
+            let assetdata = pdata.asset.entry(ticker.to_string()).or_default();
 
             let min: Option<f32> = convert(opt, 2).context("The minimum cost must be a number")?;
             let max: Option<f32> = convert(opt, 3).context("The maximum cost must be a number")?;
@@ -187,9 +200,16 @@ impl CtxSavedData {
             .get(portfolio)
             .with_context(|| format!("portfolio \"{portfolio}\" not found"))?;
 
-        let gain = pdata.get_gain(yprovider)?;
+        let gain = pdata.get_gain(yprovider).context("Portfolio is empty")?;
+        println!("==> {} ({})\n", gain.0, gain.1);
 
-        println!("==> {}\n", gain);
+        for (ticker, assetdata) in &pdata.asset {
+            let quote = yprovider.get_last_quote(ticker)?;
+            for op in &assetdata.op {
+                let d = quote.close - op.price;
+                println!("{} {} {}", ticker, op.price, d)
+            }
+        }
 
         Ok(())
     }
@@ -197,10 +217,11 @@ impl CtxSavedData {
     pub fn list(&self, yprovider: &YProvider) -> Result<()> {
         let mut table = Table::new();
         for (portfolio, pdata) in &self.saved.portfolio {
-            let gain = pdata.get_gain(yprovider)?;
+            let gain = pdata.get_gain(yprovider).context("Portfolio is empty")?;
             table.add_row(Row::new(vec![
                 Cell::new(portfolio),
-                Cell::new(&gain.to_string()),
+                Cell::new(&gain.0.to_string()),
+                Cell::new(&gain.1.to_string()),
             ]));
         }
         table.printstd();
