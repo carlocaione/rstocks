@@ -43,44 +43,38 @@ struct PortfolioData {
 }
 
 impl PortfolioData {
-    fn get_portfolio_gain(&self, yprovider: &YProvider) -> Option<(f64, f64)> {
-        let mut gain = 0.0;
-        let mut invested = 0.0;
-
-        for (ticker, assetdata) in &self.asset {
-            let quote = yprovider.get_last_quote(ticker).unwrap();
-
-            (gain, invested) = assetdata
-                .op
-                .iter()
-                .fold((gain, invested), |(gain, invested), x| {
-                    (
-                        gain + x.quantity as f64 * (quote.close - x.price),
-                        invested + x.quantity as f64 * x.price,
-                    )
-                });
-        }
-
-        if gain == 0.0 {
-            return None;
-        }
-
-        Some((gain, invested))
+    fn get_portfolio_gain(&self, yprovider: &YProvider) -> (f64, f64) {
+        self.asset
+            .iter()
+            .fold((0f64, 0f64), |(gp_acc, ip_acc), (ticker, assetdata)| {
+                let quote = yprovider.get_last_quote(ticker).unwrap();
+                let (tg, it) = assetdata
+                    .op
+                    .iter()
+                    .fold((0f64, 0f64), |(gt_acc, it_acc), x| {
+                        (
+                            gt_acc + x.quantity as f64 * (quote.close - x.price),
+                            it_acc + x.quantity as f64 * x.price,
+                        )
+                    });
+                (gp_acc + tg, ip_acc + it)
+            })
     }
 
     /*
      * TODO: We really have to pass the name here?
      */
     fn summarize_portfolio(&self, portfolio: &str, yprovider: &YProvider) -> Result<()> {
-        let mut table = Table::new();
-        let gain = self
-            .get_portfolio_gain(yprovider)
-            .context("Portfolio is empty")?;
+        let gain = self.get_portfolio_gain(yprovider);
 
+        let current = gain.0 + gain.1;
+        let perc = if gain.1 != 0.0 { gain.0 / gain.1 } else { 0.0 };
+
+        let mut table = Table::new();
         table.add_row(Row::new(vec![
             Cell::new(portfolio),
-            Cell::new(&format!("{:.2}", gain.0 + gain.1)),
-            Cell::new(&format!("{:.2}%", gain.0 / gain.1)),
+            Cell::new(&format!("{:.2}", current)),
+            Cell::new(&format!("{:.2}%", perc)),
         ]));
         table.printstd();
 
@@ -224,18 +218,18 @@ impl CtxSavedData {
         for (ticker, assetdata) in &pdata.asset {
             let quote = yprovider.get_last_quote(ticker)?;
 
-            let mut tot_gain = 0.0;
-            let mut tot_invested = 0.0;
+            let mut ticker_gain = 0.0;
+            let mut ticker_invested = 0.0;
             for op in &assetdata.op {
                 let gain = op.quantity as f64 * (quote.close - op.price);
                 let invested = op.quantity as f64 * op.price;
                 println!("{} {} {} {}", ticker, op.price, gain, invested);
 
-                tot_gain += gain;
-                tot_invested += invested;
+                ticker_gain += gain;
+                ticker_invested += invested;
             }
 
-            println!("{} {}", tot_gain, tot_invested);
+            println!("{} {}", ticker_gain, ticker_invested);
         }
 
         Ok(())
