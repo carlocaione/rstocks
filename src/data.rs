@@ -43,17 +43,17 @@ struct PortfolioData {
 }
 
 impl PortfolioData {
-    fn get_gain(&self, yprovider: &YProvider) -> Option<(f64, f64)> {
+    fn get_portfolio_gain(&self, yprovider: &YProvider) -> Option<(f64, f64)> {
         let mut gain = 0.0;
         let mut invested = 0.0;
 
         for (ticker, assetdata) in &self.asset {
             let quote = yprovider.get_last_quote(ticker).unwrap();
 
-            (invested, gain) = assetdata
+            (gain, invested) = assetdata
                 .op
                 .iter()
-                .fold((invested, gain), |(invested, gain), x| {
+                .fold((gain, invested), |(gain, invested), x| {
                     (
                         gain + x.quantity as f64 * (quote.close - x.price),
                         invested + x.quantity as f64 * x.price,
@@ -65,7 +65,26 @@ impl PortfolioData {
             return None;
         }
 
-        Some((invested, gain / invested))
+        Some((gain, invested))
+    }
+
+    /*
+     * TODO: We really have to pass the name here?
+     */
+    fn summarize_portfolio(&self, portfolio: &str, yprovider: &YProvider) -> Result<()> {
+        let mut table = Table::new();
+        let gain = self
+            .get_portfolio_gain(yprovider)
+            .context("Portfolio is empty")?;
+
+        table.add_row(Row::new(vec![
+            Cell::new(portfolio),
+            Cell::new(&format!("{:.2}", gain.0 + gain.1)),
+            Cell::new(&format!("{:.2}%", gain.0 / gain.1)),
+        ]));
+        table.printstd();
+
+        Ok(())
     }
 }
 
@@ -200,31 +219,32 @@ impl CtxSavedData {
             .get(portfolio)
             .with_context(|| format!("portfolio \"{portfolio}\" not found"))?;
 
-        let gain = pdata.get_gain(yprovider).context("Portfolio is empty")?;
-        println!("==> {} ({})\n", gain.0, gain.1);
+        pdata.summarize_portfolio(portfolio, yprovider)?;
 
         for (ticker, assetdata) in &pdata.asset {
             let quote = yprovider.get_last_quote(ticker)?;
+
+            let mut tot_gain = 0.0;
+            let mut tot_invested = 0.0;
             for op in &assetdata.op {
-                let d = quote.close - op.price;
-                println!("{} {} {}", ticker, op.price, d)
+                let gain = op.quantity as f64 * (quote.close - op.price);
+                let invested = op.quantity as f64 * op.price;
+                println!("{} {} {} {}", ticker, op.price, gain, invested);
+
+                tot_gain += gain;
+                tot_invested += invested;
             }
+
+            println!("{} {}", tot_gain, tot_invested);
         }
 
         Ok(())
     }
 
     pub fn list(&self, yprovider: &YProvider) -> Result<()> {
-        let mut table = Table::new();
         for (portfolio, pdata) in &self.saved.portfolio {
-            let gain = pdata.get_gain(yprovider).context("Portfolio is empty")?;
-            table.add_row(Row::new(vec![
-                Cell::new(portfolio),
-                Cell::new(&gain.0.to_string()),
-                Cell::new(&gain.1.to_string()),
-            ]));
+            pdata.summarize_portfolio(portfolio, yprovider)?;
         }
-        table.printstd();
         Ok(())
     }
 }
