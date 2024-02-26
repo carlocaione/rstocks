@@ -48,7 +48,7 @@ impl PortfolioData {
             .iter()
             .fold((0f64, 0f64), |(gp_acc, ip_acc), (ticker, assetdata)| {
                 let quote = yprovider.get_last_quote(ticker).unwrap();
-                let (tg, it) = assetdata
+                let (gt, it) = assetdata
                     .op
                     .iter()
                     .fold((0f64, 0f64), |(gt_acc, it_acc), x| {
@@ -57,7 +57,7 @@ impl PortfolioData {
                             it_acc + x.quantity as f64 * x.price,
                         )
                     });
-                (gp_acc + tg, ip_acc + it)
+                (gp_acc + gt, ip_acc + it)
             })
     }
 
@@ -68,7 +68,11 @@ impl PortfolioData {
         let gain = self.get_portfolio_gain(yprovider);
 
         let current = gain.0 + gain.1;
-        let perc = if gain.1 != 0.0 { gain.0 / gain.1 } else { 0.0 };
+        let perc = if gain.1 != 0.0 {
+            (gain.0 / gain.1) * 100_f64
+        } else {
+            0.0
+        };
 
         let mut table = Table::new();
         table.add_row(Row::new(vec![
@@ -213,24 +217,45 @@ impl CtxSavedData {
             .get(portfolio)
             .with_context(|| format!("portfolio \"{portfolio}\" not found"))?;
 
-        pdata.summarize_portfolio(portfolio, yprovider)?;
+        let _r = pdata
+            .asset
+            .iter()
+            .fold((0f64, 0f64), |(gp_acc, ip_acc), (ticker, assetdata)| {
+                let quote = yprovider.get_last_quote(ticker).unwrap();
 
-        for (ticker, assetdata) in &pdata.asset {
-            let quote = yprovider.get_last_quote(ticker)?;
+                let mut table = Table::new();
+                let (gt, it, qt) =
+                    assetdata
+                        .op
+                        .iter()
+                        .fold((0f64, 0f64, 0u32), |(gt_acc, it_acc, qt_acc), x| {
+                            let gt_curr = x.quantity as f64 * (quote.close - x.price);
+                            let it_curr = x.quantity as f64 * x.price;
 
-            let mut ticker_gain = 0.0;
-            let mut ticker_invested = 0.0;
-            for op in &assetdata.op {
-                let gain = op.quantity as f64 * (quote.close - op.price);
-                let invested = op.quantity as f64 * op.price;
-                println!("{} {} {} {}", ticker, op.price, gain, invested);
-
-                ticker_gain += gain;
-                ticker_invested += invested;
-            }
-
-            println!("{} {}", ticker_gain, ticker_invested);
-        }
+                            table.add_row(Row::new(vec![
+                                Cell::new(&format!("{}", x.date.date())),
+                                Cell::new(&format!("{:.2}", x.price)),
+                                Cell::new(&format!("{}", x.quantity)),
+                                Cell::new(&format!("{:.2}", gt_curr)),
+                                Cell::new(&format!("{:.2}%", (gt_curr / it_curr) * 100_f64)),
+                                Cell::new(&format!("{:.2}", (gt_curr + it_curr))),
+                            ]));
+                            (gt_acc + gt_curr, it_acc + it_curr, qt_acc + x.quantity)
+                        });
+                table.insert_row(
+                    0,
+                    Row::new(vec![
+                        Cell::new(ticker),
+                        Cell::new(&format!("{:.2}", quote.close)),
+                        Cell::new(&format!("{}", qt)),
+                        Cell::new(&format!("{:.2}", gt)),
+                        Cell::new(&format!("{:.2}%", (gt / it) * 100_f64)),
+                        Cell::new(&format!("{:.2}", gt + it)),
+                    ]),
+                );
+                table.printstd();
+                (gp_acc + gt, ip_acc + it)
+            });
 
         Ok(())
     }
