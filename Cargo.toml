@@ -13,6 +13,7 @@ owo-colors = "4.0.0"
 prettytable-rs = "0.10.0"
 rustyline = { version = "13.0.0", features = ["derive"] }
 serde = "1.0.195"
+tabled = { version = "0.15.0", features = ["ansi"] }
 time = "0.3.31"
 tokio-test = "0.4.3"
 toml = "0.8.8"

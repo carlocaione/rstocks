@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
-use prettytable::Table;
-use prettytable::{color, Attr, Cell, Row};
+use owo_colors::OwoColorize;
+use tabled::{builder::Builder, settings::Style};
 use yahoo::YahooConnector;
 use yahoo_finance_api as yahoo;
 
@@ -23,8 +23,6 @@ impl YProvider {
             bail!("{ticker} not found");
         }
 
-        let mut table = Table::new();
-
         for q in resp.quotes {
             let desc = if q.long_name.is_empty() {
                 q.short_name
@@ -32,16 +30,11 @@ impl YProvider {
                 q.long_name
             };
 
-            table.add_row(Row::new(vec![
-                Cell::new(&q.type_display),
-                Cell::new(&q.symbol)
-                    .with_style(Attr::Bold)
-                    .with_style(Attr::ForegroundColor(color::RED)),
-                Cell::new(&q.exchange),
-                Cell::new(&desc).with_style(Attr::ForegroundColor(color::GREEN)),
-            ]));
+            let mut builder = Builder::default();
+            builder.push_record(vec![&q.type_display, &q.symbol, &q.exchange, &desc]);
+            let mut table = builder.build();
+            table.with(Style::modern());
         }
-        table.printstd();
 
         Ok(())
     }
@@ -72,16 +65,17 @@ impl YProvider {
             .with_context(|| format!("{ticker} not found"))?;
         let meta = self.get_metadata(ticker)?;
 
-        let mut table = Table::new();
-        table.add_row(Row::new(vec![
-            Cell::new(&meta.instrument_type),
-            Cell::new(&meta.symbol)
-                .with_style(Attr::Bold)
-                .with_style(Attr::ForegroundColor(color::RED)),
-            Cell::new(&meta.currency),
-            Cell::new(&quote.close.to_string()).with_style(Attr::ForegroundColor(color::GREEN)),
-        ]));
-        table.printstd();
+        let mut builder = Builder::default();
+        builder.push_record(vec![
+            &meta.instrument_type.on_red().to_string(),
+            &meta.symbol,
+            &meta.currency,
+            &quote.close.to_string(),
+        ]);
+        let mut table = builder.build();
+        table.with(Style::modern());
+
+        println!("{}", table);
 
         Ok(())
     }
