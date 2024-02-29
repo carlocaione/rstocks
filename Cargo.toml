@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.79"
 chrono = { version = "0.4.33", features = ["serde"] }
+derive_more = "0.99.17"
 directories = "5.0.1"
 owo-colors = "4.0.0"
 prettytable-rs = "0.10.0"

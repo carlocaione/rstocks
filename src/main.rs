@@ -1,6 +1,7 @@
 mod cli;
 mod data;
 mod finance;
+mod table;
 
 use anyhow::{anyhow, Result};
 use cli::CommandHinter;
