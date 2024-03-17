@@ -10,6 +10,7 @@ anyhow = "1.0.79"
 chrono = { version = "0.4.33", features = ["serde"] }
 derive_more = "0.99.17"
 directories = "5.0.1"
+financeapi = "0.1.1"
 owo-colors = "4.0.0"
 prettytable-rs = "0.10.0"
 rustyline = { version = "13.0.0", features = ["derive"] }
@@ -18,4 +19,3 @@ tabled = { version = "0.15.0", features = ["ansi"] }
 time = "0.3.31"
 tokio-test = "0.4.3"
 toml = "0.8.8"
-yahoo_finance_api = "2.1.0"

@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::finance::YProvider;
+use crate::table;
 
 static PROGNAME: &str = env!("CARGO_PKG_NAME");
 
@@ -47,13 +48,15 @@ impl PortfolioData {
         self.asset
             .iter()
             .fold((0f64, 0f64), |(gp_acc, ip_acc), (ticker, assetdata)| {
-                let quote = yprovider.get_last_quote(ticker).unwrap();
+                let quote = yprovider.get_quote(ticker).unwrap();
                 let (gt, it) = assetdata
                     .op
                     .iter()
                     .fold((0f64, 0f64), |(gt_acc, it_acc), x| {
                         (
-                            gt_acc + x.quantity as f64 * (quote.close - x.price),
+                            gt_acc
+                                + x.quantity as f64
+                                    * (quote.regular_market_price.unwrap() - x.price),
                             it_acc + x.quantity as f64 * x.price,
                         )
                     });
@@ -74,13 +77,7 @@ impl PortfolioData {
             0.0
         };
 
-        let mut table = Table::new();
-        table.add_row(Row::new(vec![
-            Cell::new(portfolio),
-            Cell::new(&format!("{:.2}", current)),
-            Cell::new(&format!("{:.2}%", perc)),
-        ]));
-        table.printstd();
+        table::list(portfolio, current, perc);
 
         Ok(())
     }
@@ -88,6 +85,7 @@ impl PortfolioData {
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 struct SavedData {
+    api_key: String,
     portfolio: HashMap<String, PortfolioData>,
 }
 
@@ -221,7 +219,7 @@ impl CtxSavedData {
             .asset
             .iter()
             .fold((0f64, 0f64), |(gp_acc, ip_acc), (ticker, assetdata)| {
-                let quote = yprovider.get_last_quote(ticker).unwrap();
+                let quote = yprovider.get_quote(ticker).unwrap();
 
                 let mut table = Table::new();
                 let (gt, it, qt) =
@@ -229,7 +227,8 @@ impl CtxSavedData {
                         .op
                         .iter()
                         .fold((0f64, 0f64, 0u32), |(gt_acc, it_acc, qt_acc), x| {
-                            let gt_curr = x.quantity as f64 * (quote.close - x.price);
+                            let gt_curr =
+                                x.quantity as f64 * (quote.regular_market_price.unwrap() - x.price);
                             let it_curr = x.quantity as f64 * x.price;
 
                             table.add_row(Row::new(vec![
@@ -246,7 +245,7 @@ impl CtxSavedData {
                     0,
                     Row::new(vec![
                         Cell::new(ticker),
-                        Cell::new(&format!("{:.2}", quote.close)),
+                        Cell::new(&format!("{:.2}", quote.regular_market_price.unwrap())),
                         Cell::new(&format!("{}", qt)),
                         Cell::new(&format!("{:.2}", gt)),
                         Cell::new(&format!("{:.2}%", (gt / it) * 100_f64)),

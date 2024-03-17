@@ -1,12 +1,13 @@
 use anyhow::Result;
 use rustyline::hint::{Hint, Hinter};
+use rustyline::history::DefaultHistory;
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
-use rustyline::{Completer, Helper, Highlighter};
+use rustyline::{Completer, Editor, Helper, Highlighter};
 use std::collections::HashSet;
 
 #[derive(Completer, Helper, Highlighter)]
 pub struct CommandHinter {
-    pub hints: HashSet<CommandHint>,
+    hints: HashSet<CommandHint>,
 }
 
 #[derive(Hash, Debug, PartialEq, Eq)]
@@ -17,7 +18,7 @@ pub struct CommandHint {
 }
 
 impl CommandHint {
-    pub fn new(text: &str) -> CommandHint {
+    fn new(text: &str) -> CommandHint {
         let v: Vec<&str> = text.split_whitespace().collect();
         let mandatory_param = v.iter().skip(1).filter(|w| w.starts_with('<')).count();
         let complete_up_to = v[0].len();
@@ -29,7 +30,7 @@ impl CommandHint {
         }
     }
 
-    pub fn suffix(&self, strip_chars: usize) -> CommandHint {
+    fn suffix(&self, strip_chars: usize) -> CommandHint {
         CommandHint {
             display: self.display[strip_chars..].to_owned(),
             complete_up_to: self.complete_up_to.saturating_sub(strip_chars),
@@ -107,7 +108,7 @@ impl Validator for CommandHinter {
     }
 }
 
-pub fn build_hints() -> HashSet<CommandHint> {
+fn build_hints() -> HashSet<CommandHint> {
     let mut set = HashSet::new();
 
     set.insert(CommandHint::new("help"));
@@ -125,6 +126,17 @@ pub fn build_hints() -> HashSet<CommandHint> {
     set
 }
 
+pub fn build_editor() -> Result<Editor<CommandHinter, DefaultHistory>> {
+    let helper = CommandHinter {
+        hints: build_hints(),
+    };
+
+    let mut rl: Editor<CommandHinter, DefaultHistory> = Editor::new()?;
+    rl.set_helper(Some(helper));
+
+    Ok(rl)
+}
+
 pub fn do_help() -> Result<()> {
-    Ok(())
+    todo!();
 }

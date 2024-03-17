@@ -1,59 +1,47 @@
 use anyhow::{bail, Context, Result};
-use yahoo::YahooConnector;
-use yahoo_finance_api as yahoo;
+use financeapi::{FinanceapiConnector, FinanceapiQuote};
 
 use crate::table;
 
 pub struct YProvider {
-    pub connector: YahooConnector,
+    pub connector: FinanceapiConnector,
 }
 
 impl YProvider {
-    pub fn new() -> YProvider {
+    pub fn new<T: Into<String>>(key: T) -> YProvider {
         YProvider {
-            connector: YahooConnector::new(),
+            connector: FinanceapiConnector::new(key),
         }
     }
 
     pub fn search(&self, opt: &[&str]) -> Result<()> {
         let ticker = opt[0];
-        let resp = tokio_test::block_on(self.connector.search_ticker(ticker))?;
+        let resp = tokio_test::block_on(self.connector.autocomplete(ticker))?;
 
-        if resp.quotes.is_empty() {
+        if resp.is_empty() {
             bail!("{ticker} not found");
         }
 
-        table::search(&resp.quotes);
+        table::search(&resp);
         Ok(())
     }
 
-    pub fn get_latest_quotes(&self, ticker: &str) -> Result<yahoo::YResponse> {
-        Ok(tokio_test::block_on(
-            self.connector.get_latest_quotes(ticker, "1d"),
-        )?)
+    pub fn get_quote(&self, ticker: &str) -> Result<FinanceapiQuote> {
+        Ok(tokio_test::block_on(self.connector.quote(ticker))?)
     }
 
     pub fn exists(&self, ticker: &str) -> bool {
-        self.get_metadata(ticker).is_ok()
-    }
-
-    pub fn get_metadata(&self, ticker: &str) -> Result<yahoo::YMetaData> {
-        Ok(self.get_latest_quotes(ticker)?.metadata()?)
-    }
-
-    pub fn get_last_quote(&self, ticker: &str) -> Result<yahoo::Quote> {
-        Ok(self.get_latest_quotes(ticker)?.last_quote()?)
+        self.get_quote(ticker).is_ok()
     }
 
     pub fn info(&self, opt: &[&str]) -> Result<()> {
         let ticker = opt[0];
 
         let quote = self
-            .get_last_quote(ticker)
+            .get_quote(ticker)
             .with_context(|| format!("{ticker} not found"))?;
-        let meta = self.get_metadata(ticker)?;
 
-        table::info(&quote, &meta);
+        table::info(&quote);
         Ok(())
     }
 }
